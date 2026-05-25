@@ -1,0 +1,26 @@
+# Catkin build outputs
+build/
+devel/
+install/
+.catkin_tools/
+compile_commands.json
+
+# ROS logs, bags, and debug outputs
+*.bag
+*.bag.active
+bags/
+debug/
+log.txt
+rosgraph*.dot
+rosgraph*.svg
+plotjuggler*.xml
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Local backups and editor/tool state
+*.bak
+backups/
+.claude/
+.codex

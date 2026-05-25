@@ -1,0 +1,58 @@
+<launch>
+  <arg name="mav_name" default="drone_1" />
+  <arg name="hover_height_m" default="1.0" />
+  <arg name="step_x_m" default="0.0" />
+  <arg name="step_y_m" default="0.0" />
+  <arg name="step_z_m" default="0.0" />
+  <arg name="odometry_topic" default="/se3_truth_odom" />
+  <arg name="pose_topic" default="/airsim_node/drone_1/debug/pose_gt" />
+  <arg name="initial_pose_topic" default="/airsim_node/initial_pose" />
+  <arg name="command_pose_topic" default="/command/pose" />
+  <arg name="motor_topic" default="/airsim_node/drone_1/rotor_pwm_cmd" />
+  <arg name="use_truth_odom" default="true" />
+  <arg name="slam_source" default="airsim_eskf" />
+
+  <group if="$(arg use_truth_odom)">
+    <node name="pose_to_odom" pkg="basic_dev" type="pose_to_odom.py" output="screen">
+      <param name="pose_topic" value="$(arg pose_topic)" />
+      <param name="odom_topic" value="$(arg odometry_topic)" />
+      <param name="child_frame_id" value="$(arg mav_name)" />
+      <param name="angular_velocity_alpha" value="0.5" />
+    </node>
+  </group>
+
+  <group unless="$(arg use_truth_odom)">
+    <node name="imu_gps_odometry" pkg="imu_gps_odometry" type="imu_gps_odometry" output="screen">
+      <param name="slam_source" value="$(arg slam_source)" />
+    </node>
+  </group>
+
+  <node name="lee_position_controller_node" pkg="rotors_control" type="lee_position_controller_node" output="screen">
+    <rosparam command="load" file="$(find rotors_control)/resource/lee_controller_$(arg mav_name).yaml" />
+    <rosparam command="load" file="$(find rotors_control)/resource/$(arg mav_name).yaml" />
+    <param name="command_pose_topic" value="$(arg command_pose_topic)" />
+    <param name="odometry_topic" value="$(arg odometry_topic)" />
+    <param name="initial_pose_topic" value="$(arg initial_pose_topic)" />
+    <param name="motor_topic" value="$(arg motor_topic)" />
+    <param name="odometry_velocity_in_body_frame" value="false" />
+    <param name="use_airsim_frame_adapter" value="true" />
+    <param name="use_airsim_pwm_mixer" value="true" />
+    <param name="max_rotor_pwm" value="0.35" />
+    <param name="torque_scale/x" value="1.0" />
+    <param name="torque_scale/y" value="1.0" />
+    <param name="torque_scale/z" value="1.0" />
+  </node>
+
+  <node name="se3_hover_command" pkg="basic_dev" type="se3_hover_command.py" output="screen">
+    <param name="initial_pose_topic" value="$(arg initial_pose_topic)" />
+    <param name="command_pose_topic" value="$(arg command_pose_topic)" />
+    <param name="child_frame_id" value="$(arg mav_name)" />
+    <param name="hover_height_m" value="$(arg hover_height_m)" />
+    <param name="step_x_m" value="$(arg step_x_m)" />
+    <param name="step_y_m" value="$(arg step_y_m)" />
+    <param name="step_z_m" value="$(arg step_z_m)" />
+    <param name="step_start_time" value="4.0" />
+    <param name="start_delay" value="1.0" />
+    <param name="publish_rate" value="20.0" />
+  </node>
+</launch>

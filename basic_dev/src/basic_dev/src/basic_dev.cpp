@@ -1,102 +1,180 @@
-#ifndef _BASIC_DEV_CPP_
-#define _BASIC_DEV_CPP_
-
 #include "basic_dev.hpp"
 
 int main(int argc, char** argv)
 {
+    ros::init(argc, argv, "basic_dev");
 
-    ros::init(argc, argv, "basic_dev"); // 初始化ros 节点，命名为 basic
-    ros::NodeHandle n; // 创建node控制句柄
-    BasicDev go(&n);
+    ros::NodeHandle nh;
+    BasicDev node(nh);
+
+    ros::spin();
     return 0;
 }
 
-BasicDev::BasicDev(ros::NodeHandle *nh)
-{  
-    //创建图像传输控制句柄
-    it = std::make_unique<image_transport::ImageTransport>(*nh); 
-    front_left_img = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0));
-    front_right_img = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0));
+BasicDev::BasicDev(ros::NodeHandle& nh)
+    : nh_(nh),
+      it_(nh_)
+{
+    takeoff_srv_.request.waitOnLastTask = 1;
+    land_srv_.request.waitOnLastTask = 1;
 
-    takeoff.request.waitOnLastTask = 1;
-    land.request.waitOnLastTask = 1;
+    pose_sub_ = nh_.subscribe(
+        "/airsim_node/drone_1/debug/pose_gt",
+        1,
+        &BasicDev::poseCb,
+        this
+    );
 
-    // 使用publisher发布速度指令需要定义 Velcmd , 并赋予相应的值后，将他publish（）出去
-    velcmd.twist.angular.z = 0;//z方向角速度(yaw, deg)
-    velcmd.twist.linear.x = 0; //x方向线速度(m/s)
-    velcmd.twist.linear.y = 0;//y方向线速度(m/s)
-    velcmd.twist.linear.z = 0; //z方向线速度(m/s)
+    front_left_image_sub_ = it_.subscribe(
+        "/airsim_node/drone_1/front_left/Scene",
+        1,
+        &BasicDev::frontLeftImageCb,
+        this
+    );
 
-    //无人机信息通过如下命令订阅，当收到消息时自动回调对应的函数
-    odom_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/debug/pose_gt", 1, std::bind(&BasicDev::pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
-    gps_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, std::bind(&BasicDev::gps_cb, this, std::placeholders::_1));//状态真值，用于赛道一
-    // imu_suber = nh->subscribe<sensor_msgs::Imu>("airsim_node/drone_1/imu/imu", 1, std::bind(&BasicDev::imu_cb, this, std::placeholders::_1));//imu数据
-    // lidar_suber = nh->subscribe<sensor_msgs::PointCloud2>("airsim_node/drone_1/lidar", 1, std::bind(&BasicDev::lidar_cb, this, std::placeholders::_1));//imu数据
-    // front_left_view_suber = it->subscribe("airsim_node/drone_1/front_left/Scene", 1, std::bind(&BasicDev::front_left_view_cb, this,  std::placeholders::_1));
-    // front_right_view_suber = it->subscribe("airsim_node/drone_1/front_right/Scene", 1, std::bind(&BasicDev::front_right_view_cb, this,  std::placeholders::_1));
-    //通过这两个服务可以调用模拟器中的无人机起飞和降落命令
-    takeoff_client = nh->serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/takeoff");
-    land_client = nh->serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/land");
-    reset_client = nh->serviceClient<airsim_ros::Reset>("/airsim_node/reset");
-    //通过publisher实现对无人机的速度控制和姿态控制和角速度控制
-    vel_publisher = nh->advertise<airsim_ros::VelCmd>("airsim_node/drone_1/vel_cmd_body_frame", 1);
+    vel_pub_ = nh_.advertise<airsim_ros::VelCmd>(
+        "/airsim_node/drone_1/vel_body_cmd",
+        1
+    );
 
-    // takeoff_client.call(takeoff); //起飞
-    // land_client.call(land); //降落
-    // reset_client.call(reset); //重置
+    takeoff_client_ = nh_.serviceClient<airsim_ros::Takeoff>(
+        "/airsim_node/drone_1/takeoff"
+    );
 
-    ros::spin();
+    land_client_ = nh_.serviceClient<airsim_ros::Land>(
+        "/airsim_node/drone_1/land"
+    );
+
+    reset_client_ = nh_.serviceClient<airsim_ros::Reset>(
+        "/airsim_node/reset"
+    );
+
+    control_timer_ = nh_.createTimer(
+        ros::Duration(0.05),
+        &BasicDev::controlLoop,
+        this
+    );
+
+    ROS_INFO("basic_dev main node started.");
 }
 
-BasicDev::~BasicDev()
+void BasicDev::poseCb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
+    x_ = msg->pose.position.x;
+    y_ = msg->pose.position.y;
+    z_ = msg->pose.position.z;
+
+    Eigen::Quaterniond q(
+        msg->pose.orientation.w,
+        msg->pose.orientation.x,
+        msg->pose.orientation.y,
+        msg->pose.orientation.z
+    );
+
+    Eigen::Vector3d euler = q.matrix().eulerAngles(2, 1, 0);
+    yaw_ = euler[0];
+
+    got_pose_ = true;
+
+    ROS_INFO_THROTTLE(
+        1.0,
+        "pose: x=%.2f y=%.2f z=%.2f yaw=%.2f",
+        x_, y_, z_, yaw_
+    );
 }
 
-void BasicDev::pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
+void BasicDev::frontLeftImageCb(const sensor_msgs::ImageConstPtr& msg)
 {
-    Eigen::Quaterniond q(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
-    Eigen::Vector3d eulerAngle = q.matrix().eulerAngles(2,1,0);
-    ROS_INFO("Get pose data. time: %f, eulerangle: %f, %f, %f, posi: %f, %f, %f\n", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9,
-        eulerAngle[0], eulerAngle[1], eulerAngle[2], msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-}
-
-void BasicDev::gps_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
-{
-    Eigen::Quaterniond q(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
-    Eigen::Vector3d eulerAngle = q.matrix().eulerAngles(2,1,0);
-    ROS_INFO("Get gps data. time: %f, eulerangle: %f, %f, %f, posi: %f, %f, %f\n", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9,
-        eulerAngle[0], eulerAngle[1], eulerAngle[2], msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-}
-
-void BasicDev::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
-{
-    ROS_INFO("Get imu data. time: %f", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9);
-}
-
-void BasicDev::front_left_view_cb(const sensor_msgs::ImageConstPtr& msg)
-{
-    cv_front_left_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC3);
-    if(!cv_front_left_ptr->image.empty())
+    try
     {
-        ROS_INFO("Get front left image.: %f", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9);
+        cv_bridge::CvImageConstPtr cv_ptr =
+            cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::TYPE_8UC3);
+
+        {
+            std::lock_guard<std::mutex> lock(image_mutex_);
+            front_left_img_ = cv_ptr->image.clone();
+        }
+
+        got_front_left_image_ = true;
+
+        ROS_INFO_THROTTLE(
+            1.0,
+            "front_left image received: width=%d height=%d encoding=%s",
+            msg->width,
+            msg->height,
+            msg->encoding.c_str()
+        );
+    }
+    catch (const cv_bridge::Exception& e)
+    {
+        ROS_ERROR_THROTTLE(1.0, "cv_bridge error: %s", e.what());
     }
 }
 
-void BasicDev::front_right_view_cb(const sensor_msgs::ImageConstPtr& msg)
+void BasicDev::controlLoop(const ros::TimerEvent& event)
 {
-    cv_front_right_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_8UC3);
-    if(!cv_front_right_ptr->image.empty())
+    if (!got_pose_)
     {
-        ROS_INFO("Get front right image.%f", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9);
+        ROS_WARN_THROTTLE(1.0, "waiting for pose...");
+        return;
     }
+
+    if (!got_front_left_image_)
+    {
+        ROS_WARN_THROTTLE(1.0, "waiting for front left image...");
+        return;
+    }
+
+    if (!takeoff_called_)
+    {
+        if (takeoff_client_.call(takeoff_srv_) && takeoff_srv_.response.success)
+        {
+            takeoff_called_ = true;
+            takeoff_time_ = ros::Time::now();
+            ROS_INFO("takeoff success.");
+        }
+        else
+        {
+            ROS_WARN_THROTTLE(1.0, "takeoff failed, retrying...");
+        }
+
+        return;
+    }
+
+    double t = (ros::Time::now() - takeoff_time_).toSec();
+
+    if (t < 3.0)
+    {
+        publishBodyVel(0.0, 0.0, 0.0, 0.0);
+        ROS_INFO_THROTTLE(1.0, "hover after takeoff.");
+        return;
+    }
+
+    if (t < 5.0)
+    {
+        publishBodyVel(0.3, 0.0, 0.0, 0.0);
+        ROS_INFO_THROTTLE(1.0, "control test: moving forward slowly.");
+        return;
+    }
+
+    publishBodyVel(0.0, 0.0, 0.0, 0.0);
+    ROS_INFO_THROTTLE(1.0, "hover.");
 }
 
-void BasicDev::lidar_cb(const sensor_msgs::PointCloud2::ConstPtr& msg)
+void BasicDev::publishBodyVel(double vx, double vy, double vz, double yaw_rate)
 {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pts(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::fromROSMsg(*msg, *pts);
-    ROS_INFO("Get lidar data. time: %f, size: %ld", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9, pts->size());
-}
+    airsim_ros::VelCmd cmd;
 
-#endif
+    cmd.header.stamp = ros::Time::now();
+    cmd.header.frame_id = "drone_1";
+
+    cmd.vx = vx;
+    cmd.vy = vy;
+    cmd.vz = vz;
+    cmd.yawRate = yaw_rate;
+
+    cmd.va = 4;
+    cmd.stop = 0;
+
+    vel_pub_.publish(cmd);
+}

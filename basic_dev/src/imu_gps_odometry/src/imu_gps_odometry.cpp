@@ -51,11 +51,16 @@ void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
     {
         Eigen::Vector3d pos, vel, angle_vel;
         Eigen::Quaterniond q;
-        g_eskf_ptr->Predict(Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z), 
+        if (!g_eskf_ptr->Predict(Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z),
             Eigen::Vector3d(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z), 
-            pos, vel, angle_vel, q, msg->header.stamp.toNSec());
+            pos, vel, angle_vel, q, msg->header.stamp.toNSec()))
+        {
+            return;
+        }
         nav_msgs::Odometry msg2;
         msg2.header.stamp = msg->header.stamp;
+        msg2.header.frame_id = "world";
+        msg2.child_frame_id = "drone_1";
         msg2.pose.pose.position.x = pos.x();
         msg2.pose.pose.position.y = pos.y();
         msg2.pose.pose.position.z = pos.z();

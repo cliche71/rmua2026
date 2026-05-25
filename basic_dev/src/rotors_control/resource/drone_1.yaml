@@ -1,0 +1,19 @@
+# Airsim vehicle parameters
+# T3    T1
+#   \  /
+#    \/
+#    /\
+#   /  \
+# T2    T4
+
+mass: 0.9
+inertia: {xx: 0.0046890742, xy: 0.0, xz: 0.0, yy: 0.0069312, yz: 0.0, zz: 0.010421166}
+
+# angle should be expressed in rad
+# direction 1 means counter clockwise, -1 clockwise
+# The order of the rotors matters for the calculation of the allocation matrix.
+rotor_configuration:
+  '0': {angle: 0.785398, arm_length: 0.18, rotor_force_constant: 0.000367717, rotor_moment_constant: 4.888486266072161e-06, direction: 1.0} # front_right
+  '1': {angle: -2.356194, arm_length: 0.18, rotor_force_constant: 0.000367717, rotor_moment_constant: 4.888486266072161e-06, direction: 1.0} # back_left
+  '2': {angle: -0.785398, arm_length: 0.18, rotor_force_constant: 0.000367717, rotor_moment_constant: 4.888486266072161e-06, direction: -1.0} # front_left
+  '3': {angle: 2.356194, arm_length: 0.18, rotor_force_constant: 0.000367717, rotor_moment_constant: 4.888486266072161e-06, direction: -1.0} # back_right

@@ -1,0 +1,407 @@
+<launch>
+  <arg name="model_path" default="" />
+  <arg name="image_topic" default="/airsim_node/drone_1/front_left/Scene" />
+  <arg name="pose_topic" default="/airsim_node/drone_1/debug/pose_gt" />
+  <arg name="command_mode" default="trajectory" />
+  <arg name="gate_pose_method" default="bbox_pnp" />
+  <arg name="gate_detector_conf" default="0.40" />
+  <arg name="gate_min_area_ratio" default="0.035" />
+  <arg name="min_area_ratio" default="$(arg gate_min_area_ratio)" />
+  <arg name="gate_visual_error_min_area_ratio" default="0.005" />
+  <arg name="debug_viz" default="false" />
+  <arg name="max_center_error" default="0.75" />
+  <arg name="max_reproj_error_px" default="8.0" />
+  <arg name="max_depth_m" default="45.0" />
+  <arg name="max_lateral_m" default="4.8" />
+  <arg name="max_vertical_m" default="8.0" />
+  <arg name="camera_hfov_deg" default="60.0" />
+  <arg name="gate_width_m" default="10.0" />
+  <arg name="gate_height_m" default="5.0" />
+  <arg name="gate_trigger_width_m" default="10.0" />
+  <arg name="gate_trigger_height_m" default="5.0" />
+  <arg name="gate_trigger_length_m" default="7.0" />
+  <arg name="gate_trigger_exit_offset_m" default="-1.0" />
+  <arg name="gate_trigger_clear_margin_m" default="0.3" />
+  <arg name="gate_visual_error_topic" default="/gate/visual_error" />
+  <arg name="stop_after_first_gate" default="false" />
+  <arg name="max_gate_lateral_m" default="5.0" />
+  <arg name="max_gate_vertical_m" default="10.0" />
+  <arg name="max_rotor_pwm" default="0.42" />
+  <arg name="enable_pwm_desaturation" default="false" />
+  <arg name="max_tilt_angle_deg" default="35.0" />
+  <arg name="position_gain_x" default="1.6" />
+  <arg name="position_gain_y" default="3.0" />
+  <arg name="position_gain_z" default="3.0" />
+  <arg name="velocity_gain_x" default="2.0" />
+  <arg name="velocity_gain_y" default="2.8" />
+  <arg name="velocity_gain_z" default="2.0" />
+  <arg name="attitude_gain_x" default="0.9" />
+  <arg name="attitude_gain_y" default="0.9" />
+  <arg name="attitude_gain_z" default="0.22" />
+  <arg name="angular_rate_gain_x" default="0.09" />
+  <arg name="angular_rate_gain_y" default="0.10" />
+  <arg name="angular_rate_gain_z" default="0.16" />
+  <arg name="enable_takeoff_hold" default="true" />
+  <arg name="takeoff_height_m" default="1.0" />
+  <arg name="wait_for_gate_before_takeoff" default="$(eval arg('command_mode') == 'trajectory')" />
+  <arg name="trajectory_cruise_speed" default="1.7" />
+  <arg name="pass_speed_mps" default="2.0" />
+  <arg name="cruise_search_speed_mps" default="1.8" />
+  <arg name="max_speed_mps" default="2.5" />
+  <arg name="max_acc_mps2" default="2.0" />
+  <arg name="trajectory_max_lateral_speed_mps" default="0.9" />
+  <arg name="trajectory_max_vertical_speed_mps" default="0.55" />
+  <arg name="trajectory_constrain_lateral_vertical_derivatives" default="true" />
+  <arg name="target_flight_z" default="-1.2" />
+  <arg name="height_manager_enabled" default="true" />
+  <arg name="height_reference_mode" default="gate_center" />
+  <arg name="height_min_z" default="-30.0" />
+  <arg name="height_max_z" default="-0.7" />
+  <arg name="first_gate_height_min_z" default="-3.8" />
+  <arg name="height_full_range_after_gate_index" default="1" />
+  <arg name="height_ref_alpha" default="1.0" />
+  <arg name="height_ref_max_step_m" default="2.00" />
+  <arg name="height_ref_rate_mps" default="3.00" />
+  <arg name="first_gate_height_ref_max_step_m" default="1.80" />
+  <arg name="first_gate_height_ref_rate_mps" default="2.50" />
+  <arg name="height_gate_z_weight" default="1.0" />
+  <arg name="height_gate_z_offset_m" default="0.0" />
+  <arg name="height_gate_z_filter_alpha" default="0.45" />
+  <arg name="height_gate_z_max_step_m" default="2.00" />
+  <arg name="height_gate_z_rate_mps" default="1.20" />
+  <arg name="height_gate_z_freeze_on_recovery" default="true" />
+  <arg name="height_gate_z_freeze_on_yaw_mismatch" default="true" />
+  <arg name="height_gate_z_freeze_on_large_attitude" default="true" />
+  <arg name="height_visual_error_gain_m" default="0.45" />
+  <arg name="height_visual_distance_gain" default="0.10" />
+  <arg name="height_visual_error_sign" default="1.0" />
+  <arg name="height_down_correction_scale" default="0.25" />
+  <arg name="allow_height_replan_while_tracking" default="true" />
+  <arg name="allow_height_down_replan_while_tracking" default="false" />
+  <arg name="height_replan_visual_threshold" default="0.12" />
+  <arg name="height_replan_z_threshold_m" default="0.45" />
+  <arg name="height_replan_max_step_m" default="0.70" />
+  <arg name="height_replan_min_interval_s" default="0.80" />
+  <arg name="height_replan_max_abs_rel_z_m" default="10.0" />
+  <arg name="height_replan_min_gate_distance_m" default="4.0" />
+  <arg name="height_replan_active_gate_xy_tolerance_m" default="6.0" />
+  <arg name="height_replan_z_only_ignore_xy_error" default="true" />
+  <arg name="height_replan_after_gate_index" default="1" />
+  <arg name="new_gate_direct_climb_height" default="true" />
+  <arg name="new_gate_direct_climb_max_step_m" default="1.0" />
+  <arg name="max_vision_tilt_deg" default="45.0" />
+  <arg name="trajectory_use_feedforward" default="true" />
+  <arg name="trajectory_min_snap_path_frame" default="true" />
+  <arg name="trajectory_lateral_overshoot_limit_m" default="1.0" />
+  <arg name="gate_center_diag_interval_s" default="0.5" />
+  <arg name="track_error_warn_forward_m" default="3.0" />
+  <arg name="track_error_warn_lateral_m" default="1.5" />
+  <arg name="track_error_warn_vertical_m" default="1.2" />
+  <arg name="trajectory_waypoint_hold" default="false" />
+  <arg name="trajectory_track_lookahead_m" default="1.2" />
+  <arg name="enable_search" default="true" />
+  <arg name="enable_yaw_tracking" default="$(eval 'false' if arg('command_mode') == 'trajectory' else 'true')" />
+  <arg name="trajectory_lock_yaw_to_path" default="true" />
+  <arg name="gate_center_yaw_enabled" default="true" />
+  <arg name="gate_center_yaw_near_m" default="4.0" />
+  <arg name="gate_center_yaw_far_m" default="12.0" />
+  <arg name="trajectory_start_velocity_to_gate_center" default="true" />
+  <arg name="yaw_debug_log_enabled" default="true" />
+  <arg name="yaw_debug_log_period" default="0.5" />
+  <arg name="k_yaw" default="1.8" />
+  <arg name="max_yaw_rate" default="25.0" />
+  <arg name="yaw_tracking_sign" default="1.0" />
+  <arg name="max_vision_yaw_error_deg" default="60.0" />
+  <arg name="enable_heading_recovery" default="true" />
+  <arg name="heading_recovery_yaw_error_deg" default="95.0" />
+  <arg name="heading_recovery_tilt_deg" default="45.0" />
+  <arg name="heading_recovery_forward_step_m" default="1.5" />
+  <arg name="heading_recovery_speed_mps" default="1.2" />
+  <arg name="heading_recovery_level_speed_mps" default="0.8" />
+  <arg name="heading_recovery_far_level_min_speed_mps" default="0.8" />
+  <arg name="heading_recovery_hold_xy_when_yaw_disabled" default="false" />
+  <arg name="heading_recovery_max_vertical_speed_mps" default="0.25" />
+  <arg name="heading_recovery_hold_altitude_while_leveling" default="true" />
+  <arg name="heading_recovery_climb_while_leveling" default="false" />
+  <arg name="heading_recovery_pause_plan_time" default="true" />
+  <arg name="heading_recovery_yaw_enable_tilt_deg" default="40.0" />
+  <arg name="heading_recovery_partial_yaw_tilt_deg" default="45.0" />
+  <arg name="heading_recovery_partial_yaw_rate_deg" default="15.0" />
+  <arg name="heading_recovery_yaw_enable_dwell_s" default="0.4" />
+  <arg name="heading_recovery_full_yaw_rate_tilt_deg" default="8.0" />
+  <arg name="heading_recovery_yaw_gain" default="1.0" />
+  <arg name="heading_recovery_max_yaw_rate_deg" default="60.0" />
+  <arg name="heading_recovery_exit_yaw_error_deg" default="35.0" />
+  <arg name="heading_recovery_exit_tilt_deg" default="30.0" />
+  <arg name="heading_recovery_target_mode" default="gate_center" />
+  <arg name="heading_recovery_min_forward_component" default="0.2" />
+  <arg name="heading_recovery_gate_center_weight" default="1.0" />
+  <arg name="heading_recovery_max_target_angle_deg" default="35.0" />
+  <arg name="gate_clear_require_center_check" default="true" />
+  <arg name="gate_clear_lateral_margin_m" default="0.6" />
+  <arg name="gate_clear_vertical_margin_m" default="0.4" />
+  <arg name="gate_clear_center_miss_m" default="4.2" />
+  <arg name="gate_clear_block_during_recovery" default="true" />
+  <arg name="gate_clear_recovery_strict_enabled" default="true" />
+  <arg name="gate_clear_recovery_lateral_limit_m" default="2.5" />
+  <arg name="gate_clear_recovery_vertical_limit_m" default="1.2" />
+  <arg name="gate_clear_recovery_center_miss_m" default="2.8" />
+  <arg name="gate_clear_recovery_behind_margin_m" default="2.0" />
+  <arg name="gate_clear_block_on_large_attitude" default="true" />
+  <arg name="gate_clear_block_on_yaw_mismatch" default="true" />
+  <arg name="gate_clear_reject_replan_interval_s" default="0.8" />
+  <arg name="planner_debug_topic" default="/gate_planner/debug" />
+  <arg name="min_segment_time" default="0.25" />
+  <arg name="max_segment_time" default="30.0" />
+  <arg name="gate_target_z_offset_m" default="0.0" />
+  <arg name="post_gate_settle_time" default="0.0" />
+  <arg name="search_next_max_distance_m" default="0.0" />
+  <arg name="search_next_speed_mps" default="$(arg cruise_search_speed_mps)" />
+  <arg name="trajectory_search_yaw_rate" default="3.0" />
+  <arg name="search_visual_yaw_enabled" default="true" />
+  <arg name="search_visual_yaw_gain_deg" default="35.0" />
+  <arg name="search_visual_yaw_max_rate_deg" default="25.0" />
+  <arg name="search_visual_yaw_sign" default="1.0" />
+  <arg name="search_visual_path_turn_rate_deg" default="12.0" />
+  <arg name="search_visual_min_area_ratio" default="0.005" />
+  <arg name="new_gate_stable_frames" default="3" />
+  <arg name="new_gate_candidate_tolerance_m" default="0.8" />
+  <arg name="new_gate_requires_visual_error" default="true" />
+  <arg name="new_gate_reject_zero_visual_error" default="true" />
+  <arg name="new_gate_zero_visual_epsilon" default="0.0001" />
+  <arg name="near_gate_zone_enabled" default="true" />
+  <arg name="near_gate_zone_forward_m" default="6.0" />
+  <arg name="near_gate_prefetch_forward_m" default="12.0" />
+  <arg name="near_gate_next_min_distance_m" default="6.0" />
+  <arg name="near_gate_forbid_current_gate_yaw" default="true" />
+  <arg name="advance_search_lookahead_m" default="6.0" />
+  <arg name="advance_search_speed_mps" default="1.6" />
+  <arg name="hold_last_valid_timeout_s" default="1.0" />
+  <arg name="hold_visual_error_zero" default="true" />
+  <arg name="boundary_derivs_mode" default="match" />
+  <arg name="trajectory_sample_guard_enabled" default="false" />
+  <arg name="enable_disturbance_observer" default="true" />
+  <arg name="disturbance_observer_l1" default="30.0" />
+  <arg name="disturbance_observer_l2" default="500.0" />
+  <arg name="disturbance_observer_l3" default="1000.0" />
+  <arg name="disturbance_observer_max_acc" default="3.0" />
+  <arg name="disturbance_observer_compensation_gain" default="0.85" />
+  <arg name="disturbance_observer_freeze_tilt_deg" default="0.0" />
+  <arg name="disturbance_observer_decay_rate" default="1.5" />
+  <arg name="enable_attitude_recovery_pwm_floor" default="false" />
+  <arg name="attitude_recovery_pwm_min_tilt_deg" default="45.0" />
+  <arg name="attitude_recovery_pwm_full_tilt_deg" default="90.0" />
+  <arg name="attitude_recovery_min_pwm" default="0.12" />
+  <arg name="enable_attitude_disturbance_observer" default="true" />
+  <arg name="attitude_disturbance_observer_l1" default="20.0" />
+  <arg name="attitude_disturbance_observer_l2" default="50.0" />
+  <arg name="attitude_disturbance_observer_l3" default="120.0" />
+  <arg name="attitude_disturbance_observer_max_acc" default="8.0" />
+  <arg name="attitude_disturbance_observer_compensation_gain" default="0.7" />
+  <arg name="attitude_disturbance_observer_freeze_tilt_deg" default="80.0" />
+  <arg name="attitude_disturbance_observer_decay_rate" default="3.0" />
+
+  <include file="$(find basic_dev)/launch/gate_pipeline.launch">
+    <arg name="model_path" value="$(arg model_path)" />
+    <arg name="image_topic" value="$(arg image_topic)" />
+    <arg name="pose_topic" value="$(arg pose_topic)" />
+    <arg name="command_mode" value="$(arg command_mode)" />
+    <arg name="gate_pose_method" value="$(arg gate_pose_method)" />
+    <arg name="gate_detector_conf" value="$(arg gate_detector_conf)" />
+    <arg name="gate_min_area_ratio" value="$(arg gate_min_area_ratio)" />
+    <arg name="min_area_ratio" value="$(arg min_area_ratio)" />
+    <arg name="gate_visual_error_min_area_ratio" value="$(arg gate_visual_error_min_area_ratio)" />
+    <arg name="debug_viz" value="$(arg debug_viz)" />
+    <arg name="max_center_error" value="$(arg max_center_error)" />
+    <arg name="max_reproj_error_px" value="$(arg max_reproj_error_px)" />
+    <arg name="max_depth_m" value="$(arg max_depth_m)" />
+    <arg name="max_lateral_m" value="$(arg max_lateral_m)" />
+    <arg name="max_vertical_m" value="$(arg max_vertical_m)" />
+    <arg name="camera_hfov_deg" value="$(arg camera_hfov_deg)" />
+    <arg name="gate_width_m" value="$(arg gate_width_m)" />
+    <arg name="gate_height_m" value="$(arg gate_height_m)" />
+    <arg name="gate_trigger_width_m" value="$(arg gate_trigger_width_m)" />
+    <arg name="gate_trigger_height_m" value="$(arg gate_trigger_height_m)" />
+    <arg name="gate_trigger_length_m" value="$(arg gate_trigger_length_m)" />
+    <arg name="gate_trigger_exit_offset_m" value="$(arg gate_trigger_exit_offset_m)" />
+    <arg name="gate_trigger_clear_margin_m" value="$(arg gate_trigger_clear_margin_m)" />
+    <arg name="gate_visual_error_topic" value="$(arg gate_visual_error_topic)" />
+    <arg name="stop_after_first_gate" value="$(arg stop_after_first_gate)" />
+    <arg name="max_gate_lateral_m" value="$(arg max_gate_lateral_m)" />
+    <arg name="max_gate_vertical_m" value="$(arg max_gate_vertical_m)" />
+    <arg name="max_rotor_pwm" value="$(arg max_rotor_pwm)" />
+    <arg name="enable_pwm_desaturation" value="$(arg enable_pwm_desaturation)" />
+    <arg name="max_tilt_angle_deg" value="$(arg max_tilt_angle_deg)" />
+    <arg name="position_gain_x" value="$(arg position_gain_x)" />
+    <arg name="position_gain_y" value="$(arg position_gain_y)" />
+    <arg name="position_gain_z" value="$(arg position_gain_z)" />
+    <arg name="velocity_gain_x" value="$(arg velocity_gain_x)" />
+    <arg name="velocity_gain_y" value="$(arg velocity_gain_y)" />
+    <arg name="velocity_gain_z" value="$(arg velocity_gain_z)" />
+    <arg name="attitude_gain_x" value="$(arg attitude_gain_x)" />
+    <arg name="attitude_gain_y" value="$(arg attitude_gain_y)" />
+    <arg name="attitude_gain_z" value="$(arg attitude_gain_z)" />
+    <arg name="angular_rate_gain_x" value="$(arg angular_rate_gain_x)" />
+    <arg name="angular_rate_gain_y" value="$(arg angular_rate_gain_y)" />
+    <arg name="angular_rate_gain_z" value="$(arg angular_rate_gain_z)" />
+    <arg name="enable_takeoff_hold" value="$(arg enable_takeoff_hold)" />
+    <arg name="takeoff_height_m" value="$(arg takeoff_height_m)" />
+    <arg name="wait_for_gate_before_takeoff" value="$(arg wait_for_gate_before_takeoff)" />
+    <arg name="trajectory_cruise_speed" value="$(arg trajectory_cruise_speed)" />
+    <arg name="pass_speed_mps" value="$(arg pass_speed_mps)" />
+    <arg name="cruise_search_speed_mps" value="$(arg cruise_search_speed_mps)" />
+    <arg name="max_speed_mps" value="$(arg max_speed_mps)" />
+    <arg name="max_acc_mps2" value="$(arg max_acc_mps2)" />
+    <arg name="trajectory_max_lateral_speed_mps" value="$(arg trajectory_max_lateral_speed_mps)" />
+    <arg name="trajectory_max_vertical_speed_mps" value="$(arg trajectory_max_vertical_speed_mps)" />
+    <arg name="trajectory_constrain_lateral_vertical_derivatives" value="$(arg trajectory_constrain_lateral_vertical_derivatives)" />
+    <arg name="target_flight_z" value="$(arg target_flight_z)" />
+    <arg name="height_manager_enabled" value="$(arg height_manager_enabled)" />
+    <arg name="height_reference_mode" value="$(arg height_reference_mode)" />
+    <arg name="height_min_z" value="$(arg height_min_z)" />
+    <arg name="height_max_z" value="$(arg height_max_z)" />
+    <arg name="first_gate_height_min_z" value="$(arg first_gate_height_min_z)" />
+    <arg name="height_full_range_after_gate_index" value="$(arg height_full_range_after_gate_index)" />
+    <arg name="height_ref_alpha" value="$(arg height_ref_alpha)" />
+    <arg name="height_ref_max_step_m" value="$(arg height_ref_max_step_m)" />
+    <arg name="height_ref_rate_mps" value="$(arg height_ref_rate_mps)" />
+    <arg name="first_gate_height_ref_max_step_m" value="$(arg first_gate_height_ref_max_step_m)" />
+    <arg name="first_gate_height_ref_rate_mps" value="$(arg first_gate_height_ref_rate_mps)" />
+    <arg name="height_gate_z_weight" value="$(arg height_gate_z_weight)" />
+    <arg name="height_gate_z_offset_m" value="$(arg height_gate_z_offset_m)" />
+    <arg name="height_gate_z_filter_alpha" value="$(arg height_gate_z_filter_alpha)" />
+    <arg name="height_gate_z_max_step_m" value="$(arg height_gate_z_max_step_m)" />
+    <arg name="height_gate_z_rate_mps" value="$(arg height_gate_z_rate_mps)" />
+    <arg name="height_gate_z_freeze_on_recovery" value="$(arg height_gate_z_freeze_on_recovery)" />
+    <arg name="height_gate_z_freeze_on_yaw_mismatch" value="$(arg height_gate_z_freeze_on_yaw_mismatch)" />
+    <arg name="height_gate_z_freeze_on_large_attitude" value="$(arg height_gate_z_freeze_on_large_attitude)" />
+    <arg name="height_visual_error_gain_m" value="$(arg height_visual_error_gain_m)" />
+    <arg name="height_visual_distance_gain" value="$(arg height_visual_distance_gain)" />
+    <arg name="height_visual_error_sign" value="$(arg height_visual_error_sign)" />
+    <arg name="height_down_correction_scale" value="$(arg height_down_correction_scale)" />
+    <arg name="allow_height_replan_while_tracking" value="$(arg allow_height_replan_while_tracking)" />
+    <arg name="allow_height_down_replan_while_tracking" value="$(arg allow_height_down_replan_while_tracking)" />
+    <arg name="height_replan_visual_threshold" value="$(arg height_replan_visual_threshold)" />
+    <arg name="height_replan_z_threshold_m" value="$(arg height_replan_z_threshold_m)" />
+    <arg name="height_replan_max_step_m" value="$(arg height_replan_max_step_m)" />
+    <arg name="height_replan_min_interval_s" value="$(arg height_replan_min_interval_s)" />
+    <arg name="height_replan_max_abs_rel_z_m" value="$(arg height_replan_max_abs_rel_z_m)" />
+    <arg name="height_replan_min_gate_distance_m" value="$(arg height_replan_min_gate_distance_m)" />
+    <arg name="height_replan_active_gate_xy_tolerance_m" value="$(arg height_replan_active_gate_xy_tolerance_m)" />
+    <arg name="height_replan_z_only_ignore_xy_error" value="$(arg height_replan_z_only_ignore_xy_error)" />
+    <arg name="height_replan_after_gate_index" value="$(arg height_replan_after_gate_index)" />
+    <arg name="new_gate_direct_climb_height" value="$(arg new_gate_direct_climb_height)" />
+    <arg name="new_gate_direct_climb_max_step_m" value="$(arg new_gate_direct_climb_max_step_m)" />
+    <arg name="max_vision_tilt_deg" value="$(arg max_vision_tilt_deg)" />
+    <arg name="trajectory_use_feedforward" value="$(arg trajectory_use_feedforward)" />
+    <arg name="trajectory_min_snap_path_frame" value="$(arg trajectory_min_snap_path_frame)" />
+    <arg name="trajectory_lateral_overshoot_limit_m" value="$(arg trajectory_lateral_overshoot_limit_m)" />
+    <arg name="gate_center_diag_interval_s" value="$(arg gate_center_diag_interval_s)" />
+    <arg name="track_error_warn_forward_m" value="$(arg track_error_warn_forward_m)" />
+    <arg name="track_error_warn_lateral_m" value="$(arg track_error_warn_lateral_m)" />
+    <arg name="track_error_warn_vertical_m" value="$(arg track_error_warn_vertical_m)" />
+    <arg name="trajectory_waypoint_hold" value="$(arg trajectory_waypoint_hold)" />
+    <arg name="trajectory_track_lookahead_m" value="$(arg trajectory_track_lookahead_m)" />
+    <arg name="enable_search" value="$(arg enable_search)" />
+    <arg name="enable_yaw_tracking" value="$(arg enable_yaw_tracking)" />
+    <arg name="trajectory_lock_yaw_to_path" value="$(arg trajectory_lock_yaw_to_path)" />
+    <arg name="gate_center_yaw_enabled" value="$(arg gate_center_yaw_enabled)" />
+    <arg name="gate_center_yaw_near_m" value="$(arg gate_center_yaw_near_m)" />
+    <arg name="gate_center_yaw_far_m" value="$(arg gate_center_yaw_far_m)" />
+    <arg name="trajectory_start_velocity_to_gate_center" value="$(arg trajectory_start_velocity_to_gate_center)" />
+    <arg name="yaw_debug_log_enabled" value="$(arg yaw_debug_log_enabled)" />
+    <arg name="yaw_debug_log_period" value="$(arg yaw_debug_log_period)" />
+    <arg name="k_yaw" value="$(arg k_yaw)" />
+    <arg name="max_yaw_rate" value="$(arg max_yaw_rate)" />
+    <arg name="yaw_tracking_sign" value="$(arg yaw_tracking_sign)" />
+    <arg name="max_vision_yaw_error_deg" value="$(arg max_vision_yaw_error_deg)" />
+    <arg name="enable_heading_recovery" value="$(arg enable_heading_recovery)" />
+    <arg name="heading_recovery_yaw_error_deg" value="$(arg heading_recovery_yaw_error_deg)" />
+    <arg name="heading_recovery_tilt_deg" value="$(arg heading_recovery_tilt_deg)" />
+    <arg name="heading_recovery_forward_step_m" value="$(arg heading_recovery_forward_step_m)" />
+    <arg name="heading_recovery_speed_mps" value="$(arg heading_recovery_speed_mps)" />
+    <arg name="heading_recovery_level_speed_mps" value="$(arg heading_recovery_level_speed_mps)" />
+    <arg name="heading_recovery_far_level_min_speed_mps" value="$(arg heading_recovery_far_level_min_speed_mps)" />
+    <arg name="heading_recovery_hold_xy_when_yaw_disabled" value="$(arg heading_recovery_hold_xy_when_yaw_disabled)" />
+    <arg name="heading_recovery_max_vertical_speed_mps" value="$(arg heading_recovery_max_vertical_speed_mps)" />
+    <arg name="heading_recovery_hold_altitude_while_leveling" value="$(arg heading_recovery_hold_altitude_while_leveling)" />
+    <arg name="heading_recovery_climb_while_leveling" value="$(arg heading_recovery_climb_while_leveling)" />
+    <arg name="heading_recovery_pause_plan_time" value="$(arg heading_recovery_pause_plan_time)" />
+    <arg name="heading_recovery_yaw_enable_tilt_deg" value="$(arg heading_recovery_yaw_enable_tilt_deg)" />
+    <arg name="heading_recovery_partial_yaw_tilt_deg" value="$(arg heading_recovery_partial_yaw_tilt_deg)" />
+    <arg name="heading_recovery_partial_yaw_rate_deg" value="$(arg heading_recovery_partial_yaw_rate_deg)" />
+    <arg name="heading_recovery_yaw_enable_dwell_s" value="$(arg heading_recovery_yaw_enable_dwell_s)" />
+    <arg name="heading_recovery_full_yaw_rate_tilt_deg" value="$(arg heading_recovery_full_yaw_rate_tilt_deg)" />
+    <arg name="heading_recovery_yaw_gain" value="$(arg heading_recovery_yaw_gain)" />
+    <arg name="heading_recovery_max_yaw_rate_deg" value="$(arg heading_recovery_max_yaw_rate_deg)" />
+    <arg name="heading_recovery_exit_yaw_error_deg" value="$(arg heading_recovery_exit_yaw_error_deg)" />
+    <arg name="heading_recovery_exit_tilt_deg" value="$(arg heading_recovery_exit_tilt_deg)" />
+    <arg name="heading_recovery_target_mode" value="$(arg heading_recovery_target_mode)" />
+    <arg name="heading_recovery_min_forward_component" value="$(arg heading_recovery_min_forward_component)" />
+    <arg name="heading_recovery_gate_center_weight" value="$(arg heading_recovery_gate_center_weight)" />
+    <arg name="heading_recovery_max_target_angle_deg" value="$(arg heading_recovery_max_target_angle_deg)" />
+    <arg name="gate_clear_require_center_check" value="$(arg gate_clear_require_center_check)" />
+    <arg name="gate_clear_lateral_margin_m" value="$(arg gate_clear_lateral_margin_m)" />
+    <arg name="gate_clear_vertical_margin_m" value="$(arg gate_clear_vertical_margin_m)" />
+    <arg name="gate_clear_center_miss_m" value="$(arg gate_clear_center_miss_m)" />
+    <arg name="gate_clear_block_during_recovery" value="$(arg gate_clear_block_during_recovery)" />
+    <arg name="gate_clear_recovery_strict_enabled" value="$(arg gate_clear_recovery_strict_enabled)" />
+    <arg name="gate_clear_recovery_lateral_limit_m" value="$(arg gate_clear_recovery_lateral_limit_m)" />
+    <arg name="gate_clear_recovery_vertical_limit_m" value="$(arg gate_clear_recovery_vertical_limit_m)" />
+    <arg name="gate_clear_recovery_center_miss_m" value="$(arg gate_clear_recovery_center_miss_m)" />
+    <arg name="gate_clear_recovery_behind_margin_m" value="$(arg gate_clear_recovery_behind_margin_m)" />
+    <arg name="gate_clear_block_on_large_attitude" value="$(arg gate_clear_block_on_large_attitude)" />
+    <arg name="gate_clear_block_on_yaw_mismatch" value="$(arg gate_clear_block_on_yaw_mismatch)" />
+    <arg name="gate_clear_reject_replan_interval_s" value="$(arg gate_clear_reject_replan_interval_s)" />
+    <arg name="planner_debug_topic" value="$(arg planner_debug_topic)" />
+    <arg name="new_gate_requires_visual_error" value="$(arg new_gate_requires_visual_error)" />
+    <arg name="new_gate_reject_zero_visual_error" value="$(arg new_gate_reject_zero_visual_error)" />
+    <arg name="new_gate_zero_visual_epsilon" value="$(arg new_gate_zero_visual_epsilon)" />
+    <arg name="near_gate_zone_enabled" value="$(arg near_gate_zone_enabled)" />
+    <arg name="near_gate_zone_forward_m" value="$(arg near_gate_zone_forward_m)" />
+    <arg name="near_gate_prefetch_forward_m" value="$(arg near_gate_prefetch_forward_m)" />
+    <arg name="near_gate_next_min_distance_m" value="$(arg near_gate_next_min_distance_m)" />
+    <arg name="near_gate_forbid_current_gate_yaw" value="$(arg near_gate_forbid_current_gate_yaw)" />
+    <arg name="advance_search_lookahead_m" value="$(arg advance_search_lookahead_m)" />
+    <arg name="advance_search_speed_mps" value="$(arg advance_search_speed_mps)" />
+    <arg name="min_segment_time" value="$(arg min_segment_time)" />
+    <arg name="max_segment_time" value="$(arg max_segment_time)" />
+    <arg name="gate_target_z_offset_m" value="$(arg gate_target_z_offset_m)" />
+    <arg name="post_gate_settle_time" value="$(arg post_gate_settle_time)" />
+    <arg name="search_next_max_distance_m" value="$(arg search_next_max_distance_m)" />
+    <arg name="search_next_speed_mps" value="$(arg search_next_speed_mps)" />
+    <arg name="trajectory_search_yaw_rate" value="$(arg trajectory_search_yaw_rate)" />
+    <arg name="search_visual_yaw_enabled" value="$(arg search_visual_yaw_enabled)" />
+    <arg name="search_visual_yaw_gain_deg" value="$(arg search_visual_yaw_gain_deg)" />
+    <arg name="search_visual_yaw_max_rate_deg" value="$(arg search_visual_yaw_max_rate_deg)" />
+    <arg name="search_visual_yaw_sign" value="$(arg search_visual_yaw_sign)" />
+    <arg name="search_visual_path_turn_rate_deg" value="$(arg search_visual_path_turn_rate_deg)" />
+    <arg name="search_visual_min_area_ratio" value="$(arg search_visual_min_area_ratio)" />
+    <arg name="new_gate_stable_frames" value="$(arg new_gate_stable_frames)" />
+    <arg name="new_gate_candidate_tolerance_m" value="$(arg new_gate_candidate_tolerance_m)" />
+    <arg name="hold_last_valid_timeout_s" value="$(arg hold_last_valid_timeout_s)" />
+    <arg name="hold_visual_error_zero" value="$(arg hold_visual_error_zero)" />
+    <arg name="boundary_derivs_mode" value="$(arg boundary_derivs_mode)" />
+    <arg name="trajectory_sample_guard_enabled" value="$(arg trajectory_sample_guard_enabled)" />
+    <arg name="enable_disturbance_observer" value="$(arg enable_disturbance_observer)" />
+    <arg name="disturbance_observer_l1" value="$(arg disturbance_observer_l1)" />
+    <arg name="disturbance_observer_l2" value="$(arg disturbance_observer_l2)" />
+    <arg name="disturbance_observer_l3" value="$(arg disturbance_observer_l3)" />
+    <arg name="disturbance_observer_max_acc" value="$(arg disturbance_observer_max_acc)" />
+    <arg name="disturbance_observer_compensation_gain" value="$(arg disturbance_observer_compensation_gain)" />
+    <arg name="disturbance_observer_freeze_tilt_deg" value="$(arg disturbance_observer_freeze_tilt_deg)" />
+    <arg name="disturbance_observer_decay_rate" value="$(arg disturbance_observer_decay_rate)" />
+    <arg name="enable_attitude_recovery_pwm_floor" value="$(arg enable_attitude_recovery_pwm_floor)" />
+    <arg name="attitude_recovery_pwm_min_tilt_deg" value="$(arg attitude_recovery_pwm_min_tilt_deg)" />
+    <arg name="attitude_recovery_pwm_full_tilt_deg" value="$(arg attitude_recovery_pwm_full_tilt_deg)" />
+    <arg name="attitude_recovery_min_pwm" value="$(arg attitude_recovery_min_pwm)" />
+    <arg name="enable_attitude_disturbance_observer" value="$(arg enable_attitude_disturbance_observer)" />
+    <arg name="attitude_disturbance_observer_l1" value="$(arg attitude_disturbance_observer_l1)" />
+    <arg name="attitude_disturbance_observer_l2" value="$(arg attitude_disturbance_observer_l2)" />
+    <arg name="attitude_disturbance_observer_l3" value="$(arg attitude_disturbance_observer_l3)" />
+    <arg name="attitude_disturbance_observer_max_acc" value="$(arg attitude_disturbance_observer_max_acc)" />
+    <arg name="attitude_disturbance_observer_compensation_gain" value="$(arg attitude_disturbance_observer_compensation_gain)" />
+    <arg name="attitude_disturbance_observer_freeze_tilt_deg" value="$(arg attitude_disturbance_observer_freeze_tilt_deg)" />
+    <arg name="attitude_disturbance_observer_decay_rate" value="$(arg attitude_disturbance_observer_decay_rate)" />
+  </include>
+</launch>

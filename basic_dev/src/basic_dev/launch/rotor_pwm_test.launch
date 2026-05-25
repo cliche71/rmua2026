@@ -1,0 +1,14 @@
+<launch>
+  <arg name="mav_name" default="drone_1" />
+  <arg name="target_pwm" default="0.176" />
+  <arg name="duration" default="6.0" />
+  <arg name="ramp_time" default="2.0" />
+
+  <node name="rotor_pwm_test" pkg="basic_dev" type="rotor_pwm_test.py" output="screen">
+    <param name="motor_topic" value="/airsim_node/$(arg mav_name)/rotor_pwm_cmd" />
+    <param name="frame_id" value="$(arg mav_name)" />
+    <param name="target_pwm" value="$(arg target_pwm)" />
+    <param name="duration" value="$(arg duration)" />
+    <param name="ramp_time" value="$(arg ramp_time)" />
+  </node>
+</launch>
