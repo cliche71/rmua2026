@@ -2,6 +2,11 @@
   <arg name="model_path" default="" />
   <arg name="image_topic" default="/airsim_node/drone_1/front_left/Scene" />
   <arg name="pose_topic" default="/airsim_node/drone_1/debug/pose_gt" />
+  <arg name="odometry_topic" default="/se3_truth_odom" />
+  <arg name="truth_odometry_topic" default="/se3_truth_odom" />
+  <arg name="initial_pose_topic" default="/airsim_node/initial_pose" />
+  <arg name="use_truth_odom" default="true" />
+  <arg name="slam_source" default="airsim_eskf" />
   <arg name="command_mode" default="trajectory" />
   <arg name="gate_pose_method" default="bbox_pnp" />
   <arg name="gate_detector_conf" default="0.40" />
@@ -205,6 +210,11 @@
     <arg name="model_path" value="$(arg model_path)" />
     <arg name="image_topic" value="$(arg image_topic)" />
     <arg name="pose_topic" value="$(arg pose_topic)" />
+    <arg name="odometry_topic" value="$(arg odometry_topic)" />
+    <arg name="truth_odometry_topic" value="$(arg truth_odometry_topic)" />
+    <arg name="initial_pose_topic" value="$(arg initial_pose_topic)" />
+    <arg name="use_truth_odom" value="$(arg use_truth_odom)" />
+    <arg name="slam_source" value="$(arg slam_source)" />
     <arg name="command_mode" value="$(arg command_mode)" />
     <arg name="gate_pose_method" value="$(arg gate_pose_method)" />
     <arg name="gate_detector_conf" value="$(arg gate_detector_conf)" />

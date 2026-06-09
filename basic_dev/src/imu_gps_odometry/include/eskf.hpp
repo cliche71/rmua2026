@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Eigen/Dense"
 #include <mutex>
 #include <iostream>
@@ -6,13 +8,15 @@ class ErrorStateKalmanFilter
 {
 public:
     //(重力， P_位置不确定度_std, P_速度不确定度_std, P_角度不确定度_std, P_角速度bias不确定度_std, P_加速度bias不确定度_std,
-    //gpsx位置测量噪声_std, gpsy位置测量噪声_std, gpsz位置测量噪声_std, gpsz姿态测量噪声_std, imu角速度测量噪声_std, imu加速度测量噪声_std)
+    //gps位置测量噪声_std, gps姿态测量噪声_std, imu角速度连续噪声密度, imu加速度连续噪声密度)
     ErrorStateKalmanFilter(double gravity, double pos_noise, double vel_noise, double ori_noise, 
         double gyr_bias_noise, double acc_bias_noise, double pos_std, double ori_std,
-        double gyr_noise, double acc_noise);
+        double gyr_noise_density, double acc_noise_density);
     bool Init(Eigen::Matrix4d initPose, Eigen::Vector3d initVel,  long long tc);
     bool Predict(Eigen::Vector3d imu_acc, Eigen::Vector3d imu_gyr, Eigen::Vector3d& pos, Eigen::Vector3d& vel, Eigen::Vector3d& angle_vel, Eigen::Quaterniond& q,  long long tc);
     bool correct(Eigen::Vector3d gps_pos, Eigen::Quaterniond gps_q);
+    bool correctPosition(Eigen::Vector3d gps_pos);
+    Eigen::Vector3d GetPosition();
     bool m_isInitailed = false;
 private:
     static const unsigned int DIM_STATE = 15;
@@ -44,7 +48,10 @@ private:
     Eigen::Vector3d m_gps = Eigen::Vector3d::Zero();
 
     long long m_last_imu_tc = 0;
-    Eigen::Vector3d m_last_unbias_acc;
-    Eigen::Vector3d m_last_unbias_gyr;
+    Eigen::Vector3d m_last_unbias_acc = Eigen::Vector3d::Zero();
+    Eigen::Vector3d m_last_unbias_gyr = Eigen::Vector3d::Zero();
+    bool m_have_last_imu_measurement = false;
     std::mutex m_mtx;
+
+    void ApplyErrorState();
 };

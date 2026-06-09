@@ -30,6 +30,7 @@
   <arg name="debug_viz" default="false" />
   <arg name="mav_name" default="drone_1" />
   <arg name="odometry_topic" default="/se3_truth_odom" />
+  <arg name="truth_odometry_topic" default="/se3_truth_odom" />
   <arg name="initial_pose_topic" default="/airsim_node/initial_pose" />
   <arg name="motor_topic" default="/airsim_node/drone_1/rotor_pwm_cmd" />
   <arg name="max_rotor_pwm" default="0.42" />
@@ -215,7 +216,7 @@
     <group if="$(arg use_truth_odom)">
       <node name="pose_to_odom" pkg="basic_dev" type="pose_to_odom.py" output="screen">
         <param name="pose_topic" value="$(arg pose_topic)" />
-        <param name="odom_topic" value="$(arg odometry_topic)" />
+        <param name="odom_topic" value="$(arg truth_odometry_topic)" />
         <param name="child_frame_id" value="$(arg mav_name)" />
         <param name="angular_velocity_alpha" value="0.5" />
       </node>
