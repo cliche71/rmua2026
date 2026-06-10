@@ -67,6 +67,7 @@ catkin_install_python(PROGRAMS
   scripts/gate_poly_planner.py
   scripts/live_debug_viz.py
   scripts/manual_step_trajectory.py
+  scripts/odom_to_pose.py
   scripts/odom_to_tf.py
   scripts/pose_to_odom.py
   scripts/rotor_pwm_test.py

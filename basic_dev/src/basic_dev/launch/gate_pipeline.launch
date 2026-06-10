@@ -1,7 +1,8 @@
 <launch>
   <arg name="model_path" default="" />
   <arg name="image_topic" default="/airsim_node/drone_1/front_left/Scene" />
-  <arg name="pose_topic" default="/airsim_node/drone_1/debug/pose_gt" />
+  <arg name="truth_pose_topic" default="/airsim_node/drone_1/debug/pose_gt" />
+  <arg name="planner_pose_topic" default="/current_pose" />
   <arg name="command_mode" default="trajectory" />
   <arg name="gate_pose_method" default="bbox_pnp" />
   <arg name="gate_detector_conf" default="0.40" />
@@ -29,7 +30,7 @@
   <arg name="gate_visual_error_topic" default="/gate/visual_error" />
   <arg name="debug_viz" default="false" />
   <arg name="mav_name" default="drone_1" />
-  <arg name="odometry_topic" default="/se3_truth_odom" />
+  <arg name="odometry_topic" default="/eskf_odom" />
   <arg name="truth_odometry_topic" default="/se3_truth_odom" />
   <arg name="initial_pose_topic" default="/airsim_node/initial_pose" />
   <arg name="motor_topic" default="/airsim_node/drone_1/rotor_pwm_cmd" />
@@ -48,7 +49,7 @@
   <arg name="angular_rate_gain_x" default="0.09" />
   <arg name="angular_rate_gain_y" default="0.10" />
   <arg name="angular_rate_gain_z" default="0.16" />
-  <arg name="use_truth_odom" default="true" />
+  <arg name="use_truth_odom" default="false" />
   <arg name="slam_source" default="airsim_eskf" />
   <arg name="pending_gate_max_age" default="8.0" />
   <arg name="initial_gate_wait_timeout" default="5.0" />
@@ -191,7 +192,7 @@
   <arg name="hold_visual_error_zero" default="true" />
   <arg name="boundary_derivs_mode" default="match" />
   <arg name="trajectory_sample_guard_enabled" default="false" />
-  <arg name="enable_disturbance_observer" default="true" />
+  <arg name="enable_disturbance_observer" default="false" />
   <arg name="disturbance_observer_l1" default="30.0" />
   <arg name="disturbance_observer_l2" default="500.0" />
   <arg name="disturbance_observer_l3" default="1000.0" />
@@ -203,7 +204,7 @@
   <arg name="attitude_recovery_pwm_min_tilt_deg" default="45.0" />
   <arg name="attitude_recovery_pwm_full_tilt_deg" default="90.0" />
   <arg name="attitude_recovery_min_pwm" default="0.12" />
-  <arg name="enable_attitude_disturbance_observer" default="true" />
+  <arg name="enable_attitude_disturbance_observer" default="false" />
   <arg name="attitude_disturbance_observer_l1" default="20.0" />
   <arg name="attitude_disturbance_observer_l2" default="50.0" />
   <arg name="attitude_disturbance_observer_l3" default="120.0" />
@@ -215,7 +216,7 @@
   <group if="$(eval arg('command_mode') == 'trajectory')">
     <group if="$(arg use_truth_odom)">
       <node name="pose_to_odom" pkg="basic_dev" type="pose_to_odom.py" output="screen">
-        <param name="pose_topic" value="$(arg pose_topic)" />
+        <param name="pose_topic" value="$(arg truth_pose_topic)" />
         <param name="odom_topic" value="$(arg truth_odometry_topic)" />
         <param name="child_frame_id" value="$(arg mav_name)" />
         <param name="min_dt" value="0.005" />
@@ -233,8 +234,23 @@
     <group unless="$(arg use_truth_odom)">
       <node name="imu_gps_odometry" pkg="imu_gps_odometry" type="imu_gps_odometry" output="screen">
         <param name="slam_source" value="$(arg slam_source)" />
+        <param name="gps_message_type" value="pose" />
+        <param name="use_gps_orientation" value="false" />
+        <param name="use_receive_time_for_imu_dt" value="true" />
+        <param name="odom_topic" value="$(arg odometry_topic)" />
+        <param name="gps_topic" value="/airsim_node/drone_1/gps" />
+        <param name="imu_topic" value="/airsim_node/drone_1/imu/imu" />
+        <param name="initial_pose_topic" value="$(arg initial_pose_topic)" />
+        <param name="pos_noise" value="0.5" />
+        <param name="vel_noise" value="0.5" />
+        <param name="gps_position_std" value="0.3" />
       </node>
     </group>
+
+    <node name="odom_to_pose" pkg="basic_dev" type="odom_to_pose.py" output="screen">
+      <param name="odom_topic" value="$(arg odometry_topic)" />
+      <param name="pose_topic" value="$(arg planner_pose_topic)" />
+    </node>
 
     <node name="lee_position_controller_node" pkg="rotors_control" type="lee_position_controller_node" output="screen">
       <rosparam command="load" file="$(find rotors_control)/resource/lee_controller_$(arg mav_name).yaml" />
@@ -376,7 +392,7 @@
   </group>
 
   <node pkg="basic_dev" type="gate_poly_planner.py" name="gate_poly_planner" output="screen">
-    <param name="pose_topic" value="$(arg pose_topic)" />
+    <param name="pose_topic" value="$(arg planner_pose_topic)" />
     <param name="gate_topic" value="$(arg gate_pose_topic)" />
     <param name="gate_visual_error_topic" value="$(arg gate_visual_error_topic)" />
     <param name="command_mode" value="$(arg command_mode)" />
