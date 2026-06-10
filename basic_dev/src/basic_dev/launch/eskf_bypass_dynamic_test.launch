@@ -14,7 +14,7 @@
   <arg name="eskf_odom_topic"
        default="/eskf_odom"/>
 
-  <!-- pose_gt -> truth odometry，专门提供给 Lee -->
+  <!-- pose_gt -> truth odometry，仅用于 PlotJuggler/诊断参考，不参与控制 -->
   <node name="pose_to_odom"
         pkg="basic_dev"
         type="pose_to_odom.py"
@@ -57,7 +57,7 @@
            value="1.0"/>
   </node>
 
-  <!-- ESKF 旁路运行，只发布 /eskf_odom -->
+  <!-- ESKF 发布 /eskf_odom，Lee 使用该里程计闭环 -->
   <node name="imu_gps_odometry"
         pkg="imu_gps_odometry"
         type="imu_gps_odometry"
@@ -103,7 +103,7 @@
            value="0.0386"/>
   </node>
 
-  <!-- Lee 只读取 truth odometry，不读取 ESKF -->
+  <!-- Lee 读取 ESKF；/se3_truth_odom 只作为真值参考 -->
   <node name="lee_position_controller_node"
         pkg="rotors_control"
         type="lee_position_controller_node"
@@ -116,7 +116,7 @@
               file="$(find rotors_control)/resource/$(arg mav_name).yaml"/>
 
     <param name="odometry_topic"
-           value="$(arg truth_odom_topic)"/>
+           value="/eskf_odom"/>
 
     <param name="command_trajectory_topic"
            value="/command/trajectory"/>

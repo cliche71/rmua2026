@@ -148,7 +148,31 @@ bool ErrorStateKalmanFilter::correct(Eigen::Vector3d gps_pos, Eigen::Quaterniond
     const Eigen::Matrix<double, DIM_STATE, DIM_STATE> A = I - m_K * m_G;
     m_P = A * P_prior * A.transpose() + m_K * R * m_K.transpose();
     m_P = 0.5 * (m_P + m_P.transpose());
-    m_X = m_X + m_K *(m_Y - m_G*m_X);
+    const Eigen::Matrix<double, DIM_STATE, 1> correction_delta =
+        m_K * (m_Y - m_G * m_X);
+    m_X = m_X + correction_delta;
+    m_last_correction_debug.valid = true;
+    m_last_correction_debug.used_orientation_measurement = true;
+    m_last_correction_debug.gps_residual = m_Y.block<3, 1>(0, 0);
+    m_last_correction_debug.orientation_residual = m_Y.block<3, 1>(3, 0);
+    m_last_correction_debug.delta_position =
+        correction_delta.block<3, 1>(INDEX_STATE_POSI, 0);
+    m_last_correction_debug.delta_velocity =
+        correction_delta.block<3, 1>(INDEX_STATE_VEL, 0);
+    m_last_correction_debug.delta_theta =
+        correction_delta.block<3, 1>(INDEX_STATE_ORI, 0);
+    m_last_correction_debug.delta_gyro_bias =
+        correction_delta.block<3, 1>(INDEX_STATE_GYRO_BIAS, 0);
+    m_last_correction_debug.delta_accel_bias =
+        correction_delta.block<3, 1>(INDEX_STATE_ACC_BIAS, 0);
+    m_last_correction_debug.gyro_bias = m_gyro_bias;
+    m_last_correction_debug.accel_bias = m_accel_bias;
+    m_last_correction_debug.k_orientation_position =
+        m_K.block<3, 3>(INDEX_STATE_ORI, INDEX_MEASUREMENT_POSI);
+    m_last_correction_debug.k_gyro_bias_position =
+        m_K.block<3, 3>(INDEX_STATE_GYRO_BIAS, INDEX_MEASUREMENT_POSI);
+    m_last_correction_debug.k_accel_bias_position =
+        m_K.block<3, 3>(INDEX_STATE_ACC_BIAS, INDEX_MEASUREMENT_POSI);
     ApplyErrorState();
     return true;
 }
@@ -170,7 +194,31 @@ bool ErrorStateKalmanFilter::correctPosition(Eigen::Vector3d gps_pos)
     const Eigen::Matrix<double, DIM_STATE, DIM_STATE> A = I - K * H;
     m_P = A * P_prior * A.transpose() + K * R * K.transpose();
     m_P = 0.5 * (m_P + m_P.transpose());
-    m_X = m_X + K * (residual - H * m_X);
+    const Eigen::Matrix<double, DIM_STATE, 1> correction_delta =
+        K * (residual - H * m_X);
+    m_X = m_X + correction_delta;
+    m_last_correction_debug.valid = true;
+    m_last_correction_debug.used_orientation_measurement = false;
+    m_last_correction_debug.gps_residual = residual;
+    m_last_correction_debug.orientation_residual = Eigen::Vector3d::Zero();
+    m_last_correction_debug.delta_position =
+        correction_delta.block<3, 1>(INDEX_STATE_POSI, 0);
+    m_last_correction_debug.delta_velocity =
+        correction_delta.block<3, 1>(INDEX_STATE_VEL, 0);
+    m_last_correction_debug.delta_theta =
+        correction_delta.block<3, 1>(INDEX_STATE_ORI, 0);
+    m_last_correction_debug.delta_gyro_bias =
+        correction_delta.block<3, 1>(INDEX_STATE_GYRO_BIAS, 0);
+    m_last_correction_debug.delta_accel_bias =
+        correction_delta.block<3, 1>(INDEX_STATE_ACC_BIAS, 0);
+    m_last_correction_debug.gyro_bias = m_gyro_bias;
+    m_last_correction_debug.accel_bias = m_accel_bias;
+    m_last_correction_debug.k_orientation_position =
+        K.block<3, 3>(INDEX_STATE_ORI, 0);
+    m_last_correction_debug.k_gyro_bias_position =
+        K.block<3, 3>(INDEX_STATE_GYRO_BIAS, 0);
+    m_last_correction_debug.k_accel_bias_position =
+        K.block<3, 3>(INDEX_STATE_ACC_BIAS, 0);
     ApplyErrorState();
     return true;
 }
@@ -179,6 +227,12 @@ Eigen::Vector3d ErrorStateKalmanFilter::GetPosition()
 {
     std::lock_guard<std::mutex> lock(m_mtx);
     return m_pose.block<3, 1>(0, 3);
+}
+
+ErrorStateKalmanFilter::CorrectionDebug ErrorStateKalmanFilter::GetLastCorrectionDebug()
+{
+    std::lock_guard<std::mutex> lock(m_mtx);
+    return m_last_correction_debug;
 }
 
 void ErrorStateKalmanFilter::ApplyErrorState()

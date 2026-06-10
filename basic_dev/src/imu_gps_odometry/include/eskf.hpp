@@ -7,6 +7,24 @@
 class ErrorStateKalmanFilter
 {
 public:
+    struct CorrectionDebug
+    {
+        bool valid = false;
+        bool used_orientation_measurement = false;
+        Eigen::Vector3d gps_residual = Eigen::Vector3d::Zero();
+        Eigen::Vector3d orientation_residual = Eigen::Vector3d::Zero();
+        Eigen::Vector3d delta_position = Eigen::Vector3d::Zero();
+        Eigen::Vector3d delta_velocity = Eigen::Vector3d::Zero();
+        Eigen::Vector3d delta_theta = Eigen::Vector3d::Zero();
+        Eigen::Vector3d delta_gyro_bias = Eigen::Vector3d::Zero();
+        Eigen::Vector3d delta_accel_bias = Eigen::Vector3d::Zero();
+        Eigen::Vector3d gyro_bias = Eigen::Vector3d::Zero();
+        Eigen::Vector3d accel_bias = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d k_orientation_position = Eigen::Matrix3d::Zero();
+        Eigen::Matrix3d k_gyro_bias_position = Eigen::Matrix3d::Zero();
+        Eigen::Matrix3d k_accel_bias_position = Eigen::Matrix3d::Zero();
+    };
+
     //(重力， P_位置不确定度_std, P_速度不确定度_std, P_角度不确定度_std, P_角速度bias不确定度_std, P_加速度bias不确定度_std,
     //gps位置测量噪声_std, gps姿态测量噪声_std, imu角速度连续噪声密度, imu加速度连续噪声密度)
     ErrorStateKalmanFilter(double gravity, double pos_noise, double vel_noise, double ori_noise, 
@@ -17,6 +35,7 @@ public:
     bool correct(Eigen::Vector3d gps_pos, Eigen::Quaterniond gps_q);
     bool correctPosition(Eigen::Vector3d gps_pos);
     Eigen::Vector3d GetPosition();
+    CorrectionDebug GetLastCorrectionDebug();
     bool m_isInitailed = false;
 private:
     static const unsigned int DIM_STATE = 15;
@@ -51,6 +70,7 @@ private:
     Eigen::Vector3d m_last_unbias_acc = Eigen::Vector3d::Zero();
     Eigen::Vector3d m_last_unbias_gyr = Eigen::Vector3d::Zero();
     bool m_have_last_imu_measurement = false;
+    CorrectionDebug m_last_correction_debug;
     std::mutex m_mtx;
 
     void ApplyErrorState();

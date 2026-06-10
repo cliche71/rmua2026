@@ -58,6 +58,12 @@ int main(int argc, char** argv)
     private_nh.param(
         "enable_accel_model_diagnostics",
         g_enable_accel_model_diagnostics, true);
+    private_nh.param(
+        "enable_correction_diagnostics",
+        g_enable_correction_diagnostics, true);
+    private_nh.param(
+        "log_every_gps_correction",
+        g_log_every_gps_correction, false);
 
     std::string odom_topic = "/eskf_odom";
     std::string gps_topic = "/airsim_node/drone_1/gps";
@@ -69,12 +75,14 @@ int main(int argc, char** argv)
     private_nh.param("initial_pose_topic", initial_pose_topic, initial_pose_topic);
 
     ROS_INFO(
-        "imu_gps_odometry: use_gps_orientation=%s use_gps_z_anchor=%s use_receive_time_for_imu_dt=%s initialize_position_from_first_gps=%s accel_diag=%s gravity=(%.3f, %.3f, %.3f) pos_noise=%.3f vel_noise=%.3f gps_position_std=%.3f imu_gyro_noise_density=%.6f(rad/s/sqrt(Hz)) imu_acc_noise_density=%.6f(m/s^2/sqrt(Hz)) odom_topic=%s gps_topic=%s imu_topic=%s initial_pose_topic=%s",
+        "imu_gps_odometry: use_gps_orientation=%s use_gps_z_anchor=%s use_receive_time_for_imu_dt=%s initialize_position_from_first_gps=%s accel_diag=%s correction_diag=%s log_every_gps_correction=%s gravity=(%.3f, %.3f, %.3f) pos_noise=%.3f vel_noise=%.3f gps_position_std=%.3f imu_gyro_noise_density=%.6f(rad/s/sqrt(Hz)) imu_acc_noise_density=%.6f(m/s^2/sqrt(Hz)) odom_topic=%s gps_topic=%s imu_topic=%s initial_pose_topic=%s",
         g_use_gps_orientation ? "true" : "false",
         g_use_gps_z_anchor ? "true" : "false",
         g_use_receive_time_for_imu_dt ? "true" : "false",
         g_initialize_position_from_first_gps ? "true" : "false",
         g_enable_accel_model_diagnostics ? "true" : "false",
+        g_enable_correction_diagnostics ? "true" : "false",
+        g_log_every_gps_correction ? "true" : "false",
         g_gravity_world.x(), g_gravity_world.y(), g_gravity_world.z(),
         pos_noise, vel_noise, gps_position_std,
         imu_gyro_noise_density, imu_acc_noise_density,
@@ -182,6 +190,10 @@ void odom_local_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
     }
 
     ++g_gps_correction_count;
+    if (g_log_every_gps_correction)
+    {
+        log_correction_debug(ros::Time::now());
+    }
     log_stats_throttled(ros::Time::now());
 }
 
@@ -337,6 +349,10 @@ void log_stats_throttled(const ros::Time& now)
         g_acc_diag_racc_plus_g_sum * acc_diag_inv_count,
         g_acc_diag_rtacc_minus_g_sum * acc_diag_inv_count,
         g_acc_diag_rtacc_plus_g_sum * acc_diag_inv_count);
+    if (!g_log_every_gps_correction)
+    {
+        log_correction_debug(now);
+    }
 
     last_log_time = now;
     last_gps_correction_count = g_gps_correction_count;
@@ -353,4 +369,50 @@ void log_stats_throttled(const ros::Time& now)
     g_acc_diag_rtacc_minus_g_sum = 0.0;
     g_acc_diag_rtacc_plus_g_sum = 0.0;
     g_acc_diag_count = 0;
+}
+
+void log_correction_debug(const ros::Time& now)
+{
+    (void)now;
+    if (!g_enable_correction_diagnostics)
+    {
+        return;
+    }
+
+    const ErrorStateKalmanFilter::CorrectionDebug dbg =
+        g_eskf_ptr->GetLastCorrectionDebug();
+    if (!dbg.valid)
+    {
+        return;
+    }
+
+    const Eigen::Matrix3d& ko = dbg.k_orientation_position;
+    const Eigen::Matrix3d& kg = dbg.k_gyro_bias_position;
+    const Eigen::Matrix3d& ka = dbg.k_accel_bias_position;
+    ROS_INFO(
+        "imu_gps_odometry correction_diag: mode=%s gps_residual=(%.4f, %.4f, %.4f) gps_residual_norm=%.4f ori_residual=(%.4f, %.4f, %.4f) ori_residual_norm=%.4f dx_pos=(%.4e, %.4e, %.4e) dx_vel=(%.4e, %.4e, %.4e) delta_theta=(%.4e, %.4e, %.4e) delta_gyro_bias=(%.4e, %.4e, %.4e) delta_accel_bias=(%.4e, %.4e, %.4e) gyro_bias=(%.4e, %.4e, %.4e) accel_bias=(%.4e, %.4e, %.4e) K_orientation_position_norm=%.4e K_gyro_bias_position_norm=%.4e K_accel_bias_position_norm=%.4e K_orientation_position=[%.3e %.3e %.3e; %.3e %.3e %.3e; %.3e %.3e %.3e] K_gyro_bias_position=[%.3e %.3e %.3e; %.3e %.3e %.3e; %.3e %.3e %.3e] K_accel_bias_position=[%.3e %.3e %.3e; %.3e %.3e %.3e; %.3e %.3e %.3e]",
+        dbg.used_orientation_measurement ? "position_orientation" : "position",
+        dbg.gps_residual.x(), dbg.gps_residual.y(), dbg.gps_residual.z(),
+        dbg.gps_residual.norm(),
+        dbg.orientation_residual.x(), dbg.orientation_residual.y(),
+        dbg.orientation_residual.z(), dbg.orientation_residual.norm(),
+        dbg.delta_position.x(), dbg.delta_position.y(), dbg.delta_position.z(),
+        dbg.delta_velocity.x(), dbg.delta_velocity.y(), dbg.delta_velocity.z(),
+        dbg.delta_theta.x(), dbg.delta_theta.y(), dbg.delta_theta.z(),
+        dbg.delta_gyro_bias.x(), dbg.delta_gyro_bias.y(),
+        dbg.delta_gyro_bias.z(),
+        dbg.delta_accel_bias.x(), dbg.delta_accel_bias.y(),
+        dbg.delta_accel_bias.z(),
+        dbg.gyro_bias.x(), dbg.gyro_bias.y(), dbg.gyro_bias.z(),
+        dbg.accel_bias.x(), dbg.accel_bias.y(), dbg.accel_bias.z(),
+        ko.norm(), kg.norm(), ka.norm(),
+        ko(0, 0), ko(0, 1), ko(0, 2),
+        ko(1, 0), ko(1, 1), ko(1, 2),
+        ko(2, 0), ko(2, 1), ko(2, 2),
+        kg(0, 0), kg(0, 1), kg(0, 2),
+        kg(1, 0), kg(1, 1), kg(1, 2),
+        kg(2, 0), kg(2, 1), kg(2, 2),
+        ka(0, 0), ka(0, 1), ka(0, 2),
+        ka(1, 0), ka(1, 1), ka(1, 2),
+        ka(2, 0), ka(2, 1), ka(2, 2));
 }
