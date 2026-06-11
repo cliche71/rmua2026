@@ -64,12 +64,12 @@
   <arg name="max_speed_mps" default="2.5" />
   <arg name="max_acc_mps2" default="2.0" />
   <arg name="trajectory_max_lateral_speed_mps" default="0.9" />
-  <arg name="trajectory_max_vertical_speed_mps" default="0.55" />
+  <arg name="trajectory_max_vertical_speed_mps" default="0.9" />
   <arg name="trajectory_constrain_lateral_vertical_derivatives" default="true" />
   <arg name="target_flight_z" default="-1.2" />
   <arg name="height_manager_enabled" default="true" />
   <arg name="height_reference_mode" default="gate_center" />
-  <arg name="height_min_z" default="-30.0" />
+  <arg name="height_min_z" default="-45.0" />
   <arg name="height_max_z" default="-0.7" />
   <arg name="first_gate_height_min_z" default="-3.8" />
   <arg name="height_full_range_after_gate_index" default="1" />

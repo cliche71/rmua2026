@@ -1,0 +1,24 @@
+<launch>
+  <arg name="model_path" default="$(find basic_dev)/models/gate_model.pt" />
+
+  <!-- Match the locally validated run: bbox PnP with the packaged detector model. -->
+  <arg name="gate_pose_method" default="bbox_pnp" />
+
+  <include file="$(find basic_dev)/launch/gate_pipeline.launch">
+    <arg name="model_path" value="$(arg model_path)" />
+    <arg name="gate_pose_method" value="$(arg gate_pose_method)" />
+
+    <arg name="use_truth_odom" value="false" />
+    <arg name="odometry_topic" value="/eskf_odom" />
+    <arg name="planner_pose_topic" value="/current_pose" />
+
+    <arg name="command_mode" value="trajectory" />
+    <arg name="cmd_topic" value="/command/trajectory" />
+    <arg name="motor_topic" value="/airsim_node/drone_1/rotor_pwm_cmd" />
+
+    <arg name="debug_viz" value="false" />
+
+    <arg name="enable_disturbance_observer" value="false" />
+    <arg name="enable_attitude_disturbance_observer" value="false" />
+  </include>
+</launch>
