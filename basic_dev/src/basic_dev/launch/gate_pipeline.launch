@@ -34,8 +34,8 @@
   <arg name="truth_odometry_topic" default="/se3_truth_odom" />
   <arg name="initial_pose_topic" default="/airsim_node/initial_pose" />
   <arg name="motor_topic" default="/airsim_node/drone_1/rotor_pwm_cmd" />
-  <arg name="max_rotor_pwm" default="0.42" />
-  <arg name="enable_pwm_desaturation" default="false" />
+  <arg name="max_rotor_pwm" default="0.48" />
+  <arg name="enable_pwm_desaturation" default="true" />
   <arg name="max_tilt_angle_deg" default="35.0" />
   <arg name="position_gain_x" default="1.6" />
   <arg name="position_gain_y" default="3.0" />

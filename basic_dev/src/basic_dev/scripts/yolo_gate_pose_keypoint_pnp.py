@@ -5,6 +5,7 @@ import os
 import cv2
 import numpy as np
 import rospy
+import torch
 from cv_bridge import CvBridge
 from geometry_msgs.msg import PoseStamped, Vector3Stamped
 from sensor_msgs.msg import Image
@@ -30,6 +31,38 @@ def default_model_path():
 
 def clamp(value, lower, upper):
     return max(lower, min(upper, value))
+
+
+def select_inference_device():
+    if not torch.cuda.is_available():
+        rospy.logwarn("CUDA unavailable, using CPU")
+        return "cpu"
+
+    try:
+        major, minor = torch.cuda.get_device_capability(0)
+        gpu_arch = f"sm_{major}{minor}"
+        supported_arches = torch.cuda.get_arch_list()
+
+        rospy.loginfo(
+            "CUDA device=%s capability=%s supported_arches=%s",
+            torch.cuda.get_device_name(0),
+            gpu_arch,
+            supported_arches,
+        )
+
+        if gpu_arch not in supported_arches:
+            rospy.logwarn(
+                "Current PyTorch does not support %s; falling back to CPU",
+                gpu_arch,
+            )
+            return "cpu"
+
+        rospy.loginfo("YOLO using CUDA")
+        return 0
+
+    except Exception as exc:
+        rospy.logwarn("CUDA compatibility check failed: %s; using CPU", exc)
+        return "cpu"
 
 
 def to_numpy(value):
@@ -217,6 +250,7 @@ class YoloGatePoseKeypointPnp:
 
         self.bridge = CvBridge()
         self.model = YOLO(self.model_path)
+        self.inference_device = select_inference_device()
 
         self.pose_pub = rospy.Publisher(self.pose_topic, PoseStamped, queue_size=1)
         self.visual_error_pub = rospy.Publisher(
@@ -301,6 +335,7 @@ class YoloGatePoseKeypointPnp:
             imgsz=self.imgsz,
             conf=self.conf,
             verbose=False,
+            device=self.inference_device,
         )
         result = results[0]
         now = rospy.Time.now()

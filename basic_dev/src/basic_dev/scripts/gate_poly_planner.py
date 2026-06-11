@@ -1826,6 +1826,59 @@ class GatePolyPlanner:
             return max(self.height_min_z, self.first_gate_height_min_z)
         return self.height_min_z
 
+    def search_next_altitude_target(self):
+        if self.command_mode != "trajectory":
+            return self.pos_world[2]
+
+        candidates = []
+        for z_value in (
+            self.pos_world[2] if self.pos_world is not None else None,
+            self.height_ref_world,
+            self.search_next_altitude_world,
+        ):
+            if z_value is not None and math.isfinite(z_value):
+                candidates.append(z_value)
+
+        if not candidates:
+            return self.clamp_height(self.target_flight_z)
+
+        # AirSim/NED z is more negative at higher altitude. During lost-gate
+        # advance search, never command a descent back to an older low gate.
+        return self.clamp_height(min(candidates))
+
+    def update_search_next_altitude_target(self, now=None):
+        target_z = self.search_next_altitude_target()
+        old_z = self.search_next_altitude_world
+        if old_z is not None and target_z >= old_z - 1.0e-4:
+            return old_z
+
+        self.search_next_altitude_world = target_z
+        if self.search_next_target_world is not None:
+            self.search_next_target_world = (
+                self.search_next_target_world[0],
+                self.search_next_target_world[1],
+                target_z,
+            )
+        if self.search_next_settle_target_world is not None:
+            self.search_next_settle_target_world = (
+                self.search_next_settle_target_world[0],
+                self.search_next_settle_target_world[1],
+                target_z,
+            )
+
+        if old_z is not None:
+            rospy.loginfo_throttle(
+                0.5,
+                "raise search next altitude target: old_z=%.2f new_z=%.2f current_z=%.2f height_ref_z=%.2f",
+                old_z,
+                target_z,
+                self.pos_world[2] if self.pos_world is not None else float("nan"),
+                self.height_ref_world
+                if self.height_ref_world is not None
+                else float("nan"),
+            )
+        return target_z
+
     def active_height_ref_step_limit_m(self):
         gate_index = getattr(self, "gate_sequence_index", 0)
         if gate_index < self.height_full_range_after_gate_index:
@@ -2347,17 +2400,37 @@ class GatePolyPlanner:
                 self.plan_start += rospy.Duration(dt)
         return dt
 
-    def heading_recovery_altitude_target(self):
+    def heading_recovery_altitude_target(self, raw_planned_z=None):
         if self.heading_recovery_entry_z is None:
             self.heading_recovery_entry_z = self.pos_world[2]
 
-        target_z = clamp(
+        candidates = []
+        for z_value in (
+            self.pos_world[2] if self.pos_world is not None else None,
             self.heading_recovery_entry_z,
-            self.heading_recovery_entry_z - 0.6,
-            self.heading_recovery_entry_z + 0.6,
-        )
+            raw_planned_z,
+            self.height_ref_world,
+            self.search_next_altitude_world,
+            self.target_gate_world[2] if self.target_gate_world is not None else None,
+        ):
+            if z_value is not None and math.isfinite(z_value):
+                candidates.append(self.clamp_height(z_value))
+
+        if candidates:
+            # AirSim/NED z is more negative at higher altitude. Recovery must
+            # not lock to the low entry altitude when the planned route climbs.
+            target_z = self.clamp_height(min(candidates))
+        else:
+            target_z = self.clamp_height(self.heading_recovery_entry_z)
+
         self.heading_recovery_altitude_z = target_z
-        return target_z, 0.0, "entry-hold"
+
+        max_vz = max(0.0, self.trajectory_max_vertical_speed_mps)
+        if max_vz > 0.0 and self.pos_world is not None:
+            target_vz = clamp(target_z - self.pos_world[2], max_vz)
+        else:
+            target_vz = 0.0
+        return target_z, target_vz, "planned-follow"
 
     def heading_recovery_yaw_ready(self, now, abs_tilt_deg):
         enable_tilt = self.heading_recovery_yaw_enable_tilt_deg
@@ -2787,7 +2860,7 @@ class GatePolyPlanner:
     def update_search_altitude_preview(self, gate_world, gate_rel):
         if self.command_mode != "trajectory":
             return
-        new_z = gate_world[2]
+        new_z = self.clamp_height(gate_world[2])
         old_z = self.search_next_altitude_world
         if old_z is None:
             should_update = True
@@ -3466,9 +3539,8 @@ class GatePolyPlanner:
         self.reset_new_gate_candidate()
         self.search_forward_dir_world = forward_dir
         self.search_start_world = self.pos_world
-        self.search_next_altitude_world = (
-            self.height_ref_world if self.command_mode == "trajectory" else self.pos_world[2]
-        )
+        self.search_next_altitude_world = None
+        self.update_search_next_altitude_target(now)
         self.search_next_target_world = None
         self.search_next_target_stamp = None
         self.search_next_enter_time = now
@@ -3565,13 +3637,11 @@ class GatePolyPlanner:
             if self.next_gate_candidate_count >= self.new_gate_stable_frames
             else None
         )
-        search_altitude = (
-            self.height_ref_world if self.command_mode == "trajectory" else self.pos_world[2]
-        )
 
         if cleared_gate_world is not None:
             self.cleared_gate_world_positions.append(cleared_gate_world)
             self.gate_sequence_index += 1
+        search_altitude = self.search_next_altitude_target()
 
         self.log_gate_center_pass_diagnostics()
         if decision["reason"] == "strict recovery clear":
@@ -4375,12 +4445,7 @@ class GatePolyPlanner:
         )
         if self.search_start_world is None:
             self.search_start_world = self.pos_world
-        if self.search_next_altitude_world is None:
-            self.search_next_altitude_world = (
-                self.height_ref_world
-                if self.command_mode == "trajectory"
-                else self.pos_world[2]
-            )
+        self.update_search_next_altitude_target(now)
 
         search_delta = (
             self.pos_world[0] - self.search_start_world[0],
@@ -4667,9 +4732,12 @@ class GatePolyPlanner:
             self.heading_recovery_yaw_ready(now, abs_tilt_deg)
         )
         raw_planned_z = self.active_recovery_altitude(now)
-        target_z, target_vz, altitude_mode = self.heading_recovery_altitude_target()
+        target_z, target_vz, altitude_mode = self.heading_recovery_altitude_target(
+            raw_planned_z
+        )
         gate_z_ignored = (
-            self.target_gate_world is not None or self.height_ref_world is not None
+            raw_planned_z is not None
+            and target_z > self.clamp_height(raw_planned_z) + 1.0e-3
         )
         near_gate_zone = self.is_near_gate_zone()
         hold_xy_for_leveling = (
